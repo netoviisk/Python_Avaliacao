@@ -1,7 +1,6 @@
 import tkinter as tk
 from tkinter import ttk
 from tkinter import *
-from cliente import get_city_id_by_name, update_treeview, fetch_data_cities
 from usuario import *
 import sqlite3
 from usuario import Cidades
@@ -11,30 +10,46 @@ from usuario import Clientes
 class MainApplication:
     def __init__(self, master=None):
         self.master = master
-        self.master.title("Sistema de Gestão")
-        self.master.geometry("1000x800")  # Define o tamanho da janela
+        self.master.title("Sistema de Gerenciamento")
+        self.master.geometry("800x600")
 
-        # Container para o menu principal
-        self.menu_frame = Frame(master)
-        self.menu_frame.pack(pady=20)
+        # Criando o menu principal
+        menu_bar = Menu(master)
+        master.config(menu=menu_bar)
 
-        self.create_widgets()
+        # Criando os menus
+        usuarios_menu = Menu(menu_bar, tearoff=0)
+        cidades_menu = Menu(menu_bar, tearoff=0)
+        clientes_menu = Menu(menu_bar, tearoff=0)
+        sair_meu = Menu(menu_bar, tearoff=0)
 
-    def create_widgets(self):
-        # Botão para abrir a tela de Usuários
-        self.btn_usuarios = Button(self.menu_frame, text="Gerenciar Usuários", command=self.open_usuarios_screen, font=("Verdana", "12"))
-        self.btn_usuarios.pack(pady=10)
+        # Adicionando itens aos menus
+        menu_bar.add_cascade(label="Usuários", menu=usuarios_menu)
+        usuarios_menu.add_command(label="Gerenciar Usuários", command=self.abrir_tela_usuarios)
 
-        # Botão para abrir a tela de Cidades
-        self.btn_cidades = Button(self.menu_frame, text="Gerenciar Cidades", command=self.open_cidades_screen, font=("Verdana", "12"))
-        self.btn_cidades.pack(pady=10)
+        menu_bar.add_cascade(label="Cidades", menu=cidades_menu)
+        cidades_menu.add_command(label="Gerenciar Cidades", command=self.abrir_tela_cidades)
 
-        # Botão para abrir a tela de Clientes
-        self.btn_clientes = Button(self.menu_frame, text="Gerenciar Clientes", command=self.open_clientes_screen, font=("Verdana", "12"))
-        self.btn_clientes.pack(pady=10)
+        menu_bar.add_cascade(label="Clientes", menu=clientes_menu)
+        clientes_menu.add_command(label="Gerenciar Clientes", command=self.abrir_tela_clientes)
 
-        self.btn_sair = Button(self.menu_frame, text="Sair", command=self.master.quit, font=("Verdana", "12"))
-        self.btn_sair.pack(pady=10)
+        menu_bar.add_cascade(label="Sair", menu=sair_meu)
+        sair_meu.add_command(label="Sair", command=self.QUIT)
+
+    def abrir_tela_usuarios(self):
+        self.new_window = tk.Toplevel(self.master)
+        self.app = ApplicationUsuarios(self.new_window)
+        
+    def QUIT(self):
+        root.destroy()
+
+    def abrir_tela_cidades(self):
+        self.new_window = tk.Toplevel(self.master)
+        self.app = ApplicationCidades(self.new_window)
+
+    def abrir_tela_clientes(self):
+        self.new_window = tk.Toplevel(self.master)
+        self.app = ApplicationClientes(self.new_window)
 
     def open_usuarios_screen(self):
         self.new_window = tk.Toplevel(self.master)
