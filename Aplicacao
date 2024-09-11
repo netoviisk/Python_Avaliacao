@@ -3,7 +3,9 @@ from tkinter import ttk, messagebox
 from tkinter import *
 from usuario import *
 import sqlite3
+from usuario import Cidades
 from banco import Banco
+from usuario import Clientes
 
 class TelaLogin:
     def __init__(self, master=None):
@@ -39,7 +41,7 @@ class TelaLogin:
 
         if self.validar_login(usuario, senha):
             self.master.destroy()  # Fecha a tela de login
-            self.abrir_tela_principal()
+
         else:
             messagebox.showerror("Erro", "Usuário ou senha incorretos.")
 
@@ -54,6 +56,8 @@ class TelaLogin:
         except Exception as e:
             print(f"Erro ao validar login: {e}")
             return False
+
+
 
 class MainApplication:
     def __init__(self, master=None):
@@ -506,12 +510,38 @@ class ApplicationCidades:
         self.update_treeview()  # Atualiza a Treeview após alterar
 
     def excluirCidade(self):
-        cidade = Cidades(idcidade=self.txtidcidade.get())
+        idcidade = self.txtidcidade.get()
+        cidade = Cidades(idcidade=idcidade)
+
+        if cidade.temClientesAssociados():
+            resultado = "Não é possível excluir a cidade. Existem clientes associados a ela."
+            self.lblmsg["text"] = resultado
+            messagebox.showinfo("Informação", resultado)
+            return
+
         resultado = cidade.deleteCidade()
         self.lblmsg["text"] = resultado
-        messagebox.showinfo("Informação", resultado)  # Exibe uma caixa de mensagem com o resultado
+        messagebox.showinfo("Informação", resultado)
         self.clear_entries()
-        self.update_treeview()  # Atualiza a Treeview após excluir
+        self.update_treeview()
+
+    def deleteCidade(self):
+        # Código para excluir a cidade do banco de dados
+        conn = sqlite3.connect('banco.db')
+        cursor = conn.cursor()
+        cursor.execute('DELETE FROM cidades WHERE idcidade = ?', (self.idcidade,))
+        conn.commit()
+        conn.close()
+        return "Cidade excluída com sucesso."
+
+    def temClientesAssociados(self):
+        # Verifica se há clientes associados a esta cidade
+        conn = sqlite3.connect('banco.db')
+        cursor = conn.cursor()
+        cursor.execute('SELECT COUNT(*) FROM clientes WHERE idcidade = ?', (self.idcidade,))
+        count = cursor.fetchone()[0]
+        conn.close()
+        return count > 0
 
     def buscarCidade(self):
         cidade = Cidades()
@@ -562,9 +592,9 @@ class Cidades:
         try:
             c = banco.conexao.cursor()
             c.execute("""
-                INSERT INTO cidades (nomecid, cep, UF) 
-                VALUES (?, ?, ?)
-            """, (self.nomecid, self.cep, self.UF))
+                   INSERT INTO cidades (nomecid, cep, UF) 
+                   VALUES (?, ?, ?)
+               """, (self.nomecid, self.cep, self.UF))
             banco.conexao.commit()
             c.close()
             return "Cidade inserida com sucesso!"
@@ -576,10 +606,10 @@ class Cidades:
         try:
             c = banco.conexao.cursor()
             c.execute("""
-                UPDATE cidades
-                SET nomecid = ?, cep = ?, UF = ?
-                WHERE idcidade = ?
-            """, (self.nomecid, self.cep, self.UF, self.idcidade))
+                   UPDATE cidades
+                   SET nomecid = ?, cep = ?, UF = ?
+                   WHERE idcidade = ?
+               """, (self.nomecid, self.cep, self.UF, self.idcidade))
             banco.conexao.commit()
             c.close()
             return "Cidade atualizada com sucesso!"
@@ -614,6 +644,17 @@ class Cidades:
                 return "Cidade não encontrada."
         except Exception as e:
             return f"Ocorreu um erro na busca da cidade: {str(e)}"
+
+    def temClientesAssociados(self):
+        banco = Banco()
+        try:
+            c = banco.conexao.cursor()
+            c.execute('SELECT COUNT(*) FROM clientes WHERE idcidade = ?', (self.idcidade,))
+            count = c.fetchone()[0]
+            c.close()
+            return count > 0
+        except Exception as e:
+            return f"Ocorreu um erro na verificação de clientes associados: {str(e)}"
 
 class ApplicationClientes:
     def __init__(self, master=None):
@@ -755,6 +796,14 @@ class ApplicationClientes:
             print(f"Erro ao buscar clientes: {e}")
             return []
 
+    def existeClientesPorCidade(idcidade):
+        conn = sqlite3.connect('banco.db')  # Altere para o seu banco de dados
+        cursor = conn.cursor()
+        cursor.execute('SELECT COUNT(*) FROM clientes WHERE idcidade = ?', (idcidade,))
+        count = cursor.fetchone()[0]
+        conn.close()
+        return count > 0
+
     def fetch_data_cities(self):
         banco = Banco()
         try:
@@ -872,6 +921,22 @@ class ApplicationClientes:
 
         self.update_treeview()
 
+    def excluirCliente(self):
+        cliente = Clientes()
+        cliente.idcliente = self.txtidcliente.get()
+
+        result = cliente.deleteCliente()
+        messagebox.showinfo("Resultado", result)
+
+        self.txtidcliente.delete(0, tk.END)
+        self.txtnomecli.delete(0, tk.END)
+        self.txtcpf.delete(0, tk.END)
+        self.txtdata_nascimento.delete(0, tk.END)
+        self.combogenero.set('')
+        self.combocidade.set('')
+
+        self.update_treeview()
+
     def buscarCliente(self):
         cliente = Clientes()
         cliente.idcliente = self.txtidcliente.get()
@@ -896,6 +961,85 @@ class ApplicationClientes:
 
     def sairAplicacao(self):
         self.master.destroy()
+
+
+class Clientes:
+    def __init__(self, idcliente=0, nomecli="", cpf="", data_nascimento="", genero="", idcidade=None):
+        self.idcliente = idcliente
+        self.nomecli = nomecli
+        self.cpf = cpf
+        self.data_nascimento = data_nascimento
+        self.genero = genero
+        self.idcidade = idcidade
+
+    def insertCliente(self):
+        banco = Banco()
+        try:
+            c = banco.conexao.cursor()
+            c.execute("""
+                INSERT INTO clientes (nomecli, cpf, data_nascimento, genero, idcidade) 
+                VALUES (?, ?, ?, ?, ?)
+            """, (self.nomecli, self.cpf, self.data_nascimento, self.genero, self.idcidade))
+            banco.conexao.commit()
+            c.close()
+            return "Cliente inserido com sucesso!"
+        except Exception as e:
+            return f"Ocorreu um erro na inserção do cliente: {str(e)}"
+
+    def updateCliente(self):
+        banco = Banco()
+        try:
+            c = banco.conexao.cursor()
+            c.execute("""
+                UPDATE clientes
+                SET nomecli = ?, cpf = ?, data_nascimento = ?, genero = ?, idcidade = ?
+                WHERE idcliente = ?
+            """, (self.nomecli, self.cpf, self.data_nascimento, self.genero, self.idcidade, self.idcliente))
+            banco.conexao.commit()
+            c.close()
+            return "Cliente atualizado com sucesso!"
+        except Exception as e:
+            return f"Ocorreu um erro na alteração do cliente: {str(e)}"
+
+    def deleteCliente(self):
+        banco = Banco()
+        try:
+            c = banco.conexao.cursor()
+            c.execute("DELETE FROM clientes WHERE idcliente = ?", (self.idcliente,))
+            banco.conexao.commit()
+            c.close()
+            return "Cliente excluído com sucesso!"
+        except Exception as e:
+            return f"Ocorreu um erro na exclusão do cliente: {str(e)}"
+
+    def selectCliente(self):
+        banco = Banco()
+        try:
+            c = banco.conexao.cursor()
+            c.execute("SELECT * FROM clientes WHERE idcliente = ?", (self.idcliente,))
+            linha = c.fetchone()
+            if linha:
+                self.idcliente = linha[0]
+                self.nomecli = linha[1]
+                self.cpf = linha[2]
+                self.data_nascimento = linha[3]
+                self.genero = linha[4]
+                self.idcidade = linha[5]
+                c.close()
+                return linha
+            else:
+                return None
+        except Exception as e:
+            return f"Ocorreu um erro na busca do cliente: {str(e)}"
+
+    @staticmethod
+    def existeClientesPorCidade(idcidade):
+        conn = sqlite3.connect('banco.db')
+        cursor = conn.cursor()
+        cursor.execute('SELECT COUNT(*) FROM clientes WHERE idcidade = ?', (idcidade,))
+        count = cursor.fetchone()[0]
+        conn.close()
+        return count > 0
 
 
 if __name__ == "__main__":
