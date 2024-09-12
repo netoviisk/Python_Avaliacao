@@ -4,11 +4,9 @@ import subprocess
 import tkinter as tk
 from tkinter import ttk, messagebox
 from tkinter import *
-from usuario import *
 import sqlite3
-from usuario import Cidades
+from usuario import *
 from banco import Banco
-from usuario import Clientes
 from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib.pyplot as plt
 
